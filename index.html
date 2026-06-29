@@ -153,25 +153,42 @@
     });
   </script>
 
-  <!-- Script para enviar el formulario de contacto (Placeholder para Supabase) -->
+  <!-- Script para enviar el formulario de contacto con Supabase -->
   <script>
     document.getElementById('contact-form').addEventListener('submit', async function(e) {
       e.preventDefault();
-      
+
       const btn = this.querySelector('button');
       const status = document.getElementById('contact-form-status');
-      
+
       btn.disabled = true;
       btn.textContent = 'Sending...';
+      status.textContent = '';
+      status.className = 'contact-form-status';
 
-      // TODO: Implementar envío con Supabase
-      setTimeout(() => {
-        status.textContent = '✓ Mensaje enviado exitosamente (demo).';
+      const name    = this.querySelector('[name="name"]').value.trim();
+      const email   = this.querySelector('[name="email"]').value.trim();
+      const phone   = this.querySelector('[name="phone"]').value.trim();
+      const message = this.querySelector('[name="message"]').value.trim();
+
+      try {
+        const { error } = await window.supabaseClient
+          .from('contact_messages')
+          .insert([{ name, email, phone, message }]);
+
+        if (error) throw error;
+
+        status.textContent = '✓ Message sent! We will get back to you soon.';
         status.className = 'contact-form-status success';
+        this.reset();
+      } catch (err) {
+        console.error('Error sending message:', err);
+        status.textContent = '✗ Error sending message. Please try again or call us directly.';
+        status.className = 'contact-form-status error';
+      } finally {
         btn.disabled = false;
         btn.textContent = 'SEND MESSAGE';
-        this.reset();
-      }, 1000);
+      }
     });
   </script>
 

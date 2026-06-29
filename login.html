@@ -167,49 +167,96 @@
     </form>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-config.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      const loginForm = document.getElementById('login-form');
-      const errorDiv = document.getElementById('login-error');
-      const forgotLink = document.getElementById('forgotPassword');
+      const loginForm    = document.getElementById('login-form');
+      const errorDiv     = document.getElementById('login-error');
+      const forgotLink   = document.getElementById('forgotPassword');
       const rememberCheck = document.getElementById('remember');
       const usernameInput = document.getElementById('username');
-      
+
       const savedUser = localStorage.getItem('saved_username');
       if (savedUser) {
         usernameInput.value = savedUser;
         rememberCheck.checked = true;
       }
-      
+
       forgotLink.addEventListener('click', function(e) {
         e.preventDefault();
         alert('Please contact the administrator:\n\nEmail: shawn@leashtolegacy.org\nPhone: 904-563-7550');
       });
-      
-      loginForm.addEventListener('submit', function(e) {
+
+      loginForm.addEventListener('submit', async function(e) {
         e.preventDefault();
-        
-        const username = usernameInput.value.trim();
+
+        const email    = usernameInput.value.trim();
         const password = document.getElementById('password').value.trim();
-        
-        if (!username || !password) {
-          errorDiv.textContent = 'Please enter username and password';
+        const submitBtn = loginForm.querySelector('button[type="submit"]');
+
+        if (!email || !password) {
+          errorDiv.textContent = 'Please enter email and password';
           return;
         }
-        
-        if (username === 'admin' && password === 'leash2025') {
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Signing in...';
+        errorDiv.textContent = '';
+
+        try {
+          // Buscar usuario en la tabla usuarios por email
+          const { data: users, error } = await window.supabaseClient
+            .from('usuarios')
+            .select('id, nombre, email, password_hash, rol, activo')
+            .eq('email', email)
+            .eq('activo', true)
+            .limit(1);
+
+          if (error) throw error;
+
+          if (!users || users.length === 0) {
+            errorDiv.textContent = 'Invalid email or password';
+            document.getElementById('password').value = '';
+            return;
+          }
+
+          const user = users[0];
+
+          // Verificar contraseña (comparación directa con password_hash)
+          // Si usas hashing real, reemplaza esta línea por tu función de verificación
+          if (user.password_hash !== password) {
+            errorDiv.textContent = 'Invalid email or password';
+            document.getElementById('password').value = '';
+            return;
+          }
+
+          // Verificar que sea admin
+          if (user.rol !== 'admin') {
+            errorDiv.textContent = 'Access denied: admin role required';
+            return;
+          }
+
+          // Login exitoso
           if (rememberCheck.checked) {
-            localStorage.setItem('saved_username', username);
+            localStorage.setItem('saved_username', email);
           } else {
             localStorage.removeItem('saved_username');
           }
-          
+
           localStorage.setItem('isAuthenticated', 'true');
-          localStorage.setItem('user', username);
+          localStorage.setItem('user', user.nombre || email);
+          localStorage.setItem('user_id', user.id);
+          localStorage.setItem('user_rol', user.rol);
+
           window.location.href = 'panel.html';
-        } else {
-          errorDiv.textContent = 'Invalid username or password';
-          document.getElementById('password').value = '';
+
+        } catch (err) {
+          console.error('Login error:', err);
+          errorDiv.textContent = 'Connection error. Please try again.';
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Sign In';
         }
       });
     });

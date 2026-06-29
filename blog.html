@@ -199,12 +199,17 @@
 
       window.openPost = async function(postId) {
         try {
-          const response = await fetch('/site-data.json?t=' + Date.now());
-          const data = await response.json();
-          const post = data.blog.posts.find(p => p.id === postId);
-          
+          const { data: post, error } = await window.supabaseClient
+            .from('blog_posts')
+            .select('*')
+            .eq('id', postId)
+            .single();
+
+          if (error) throw error;
+
           if (post) {
-            modalImage.src = post.imagen;
+            modalImage.src = post.imagen || '';
+            modalImage.style.display = post.imagen ? 'block' : 'none';
             modalTitle.textContent = post.titulo;
             if (post.fecha) {
               modalDate.textContent = new Date(post.fecha).toLocaleDateString('en-US', {
@@ -215,16 +220,17 @@
             } else {
               modalDate.textContent = '';
             }
-            
+
             const paragraphs = post.texto.split('\n\n').filter(p => p.trim());
             modalContent.innerHTML = paragraphs.map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
-            
+
             modal.classList.add('active');
           }
         } catch (error) {
           console.error('Error loading post:', error);
         }
       };
+
 
       closeModal.addEventListener('click', () => {
         modal.classList.remove('active');
